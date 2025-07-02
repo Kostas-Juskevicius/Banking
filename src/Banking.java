@@ -1,28 +1,14 @@
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.InputMismatchException;
+import java.util.List;
 import java.util.Scanner;
 
 public class Banking {
-    private static void printOptions() {
-        System.out.println("------------------------------------------");
-        System.out.println("0 - exit");
-        System.out.println("1 - register a bank account");
-        System.out.println("2 - check balance");
-        System.out.println("3 - deposit money");
-        System.out.println("4 - withdraw money");
-        System.out.println("5 - transfer money");
-        System.out.println("------------------------------------------");
-        System.out.println("Waiting for user input...");
-    }
-
-    private static void registerAccount() {
-        while (true) {
-
-        }
-    }
+    private static List<BankAccount> accounts = new ArrayList<>();
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        BankAccount[] accounts;
 
         mainLoop:
         while (true) {
@@ -64,5 +50,27 @@ public class Banking {
                     break mainLoop;
             }
         }
+    }
+
+    /* ------------------------------------------------- BANK ACCOUNT ACTION METHODS -------------------------------------------------*/
+
+    private static void registerAccount() {
+        Banking.accounts.add(new BankAccount());
+
+        System.out.println("Bank account " + accounts.size() + " has been successfully registered.");
+    }
+
+    /* ------------------------------------------------- UTIL METHODS -------------------------------------------------*/
+
+    private static void printOptions() {
+        System.out.println("------------------------------------------");
+        System.out.println("0 - exit");
+        System.out.println("1 - register a bank account");
+        System.out.println("2 - check balance");
+        System.out.println("3 - deposit money");
+        System.out.println("4 - withdraw money");
+        System.out.println("5 - transfer money");
+        System.out.println("------------------------------------------");
+        System.out.println("Waiting for user input...");
     }
 }
