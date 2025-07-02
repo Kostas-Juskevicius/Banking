@@ -2,7 +2,6 @@ import java.util.InputMismatchException;
 import java.util.Scanner;
 
 public class Banking {
-
     private static void printOptions() {
         System.out.println("------------------------------------------");
         System.out.println("0 - exit");
@@ -13,6 +12,12 @@ public class Banking {
         System.out.println("5 - transfer money");
         System.out.println("------------------------------------------");
         System.out.println("Waiting for user input...");
+    }
+
+    private static void registerAccount() {
+        while (true) {
+
+        }
     }
 
     public static void main(String[] args) {
@@ -28,12 +33,12 @@ public class Banking {
                 try {
                     option = scanner.nextByte();
 
-                    if (option < 0 || option > 4) {
-                        System.out.println("Invalid input, please input a whole number in the range of [0; 4]");
+                    if (option < 0 || option > 5) {
+                        System.out.printf("Invalid input, please input a whole number in the range of [0; %d]%n", Consts.OPTION_COUNT);
                         option = -1;
                     }
                 } catch (InputMismatchException inputExc) {
-                    System.out.println("Invalid input, please input a whole number in the range of [0; 4]");
+                    System.out.printf("Invalid input, please input a whole number in the range of [0; %d]%n", Consts.OPTION_COUNT);
                     scanner.next();
                 } catch (Exception exc) {
                     System.out.println("An exception has occurred while trying to read user input.");
@@ -45,6 +50,7 @@ public class Banking {
                 case 0:
                     break mainLoop;
                 case 1:
+                    registerAccount();
                     break;
                 case 2:
                     break;
