@@ -1,36 +1,19 @@
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
 
 public class Banking {
-    private static List<BankAccount> accounts = new ArrayList<>();
+    private static final List<BankAccount> accounts = new ArrayList<>();
+    private static final Scanner scanner = new Scanner(System.in);
 
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
 
         mainLoop:
         while (true) {
             Banking.printOptions();
 
-            byte option = -1;
-            while (option == -1) {
-                try {
-                    option = scanner.nextByte();
-
-                    if (option < 0 || option > 5) {
-                        System.out.printf("Invalid input, please input a whole number in the range of [0; %d]%n", Consts.OPTION_COUNT);
-                        option = -1;
-                    }
-                } catch (InputMismatchException inputExc) {
-                    System.out.printf("Invalid input, please input a whole number in the range of [0; %d]%n", Consts.OPTION_COUNT);
-                    scanner.next();
-                } catch (Exception exc) {
-                    System.out.println("An exception has occurred while trying to read user input.");
-                    scanner.next();
-                }
-            }
+            byte option = getOption(0, Consts.OPTION_COUNT);
 
             switch (option) {
                 case 0:
@@ -39,6 +22,7 @@ public class Banking {
                     registerAccount();
                     break;
                 case 2:
+                    checkBalance();
                     break;
                 case 3:
                     break;
@@ -52,6 +36,27 @@ public class Banking {
         }
     }
 
+    private static byte getOption(int minVal, int maxVal) {
+        byte option = -1;
+        while (option == -1) {
+            try {
+                option = Banking.scanner.nextByte();
+
+                if (option < minVal || option > maxVal) {
+                    System.out.printf("Invalid input, please input a whole number in the range of [0; %d]%n", maxVal);
+                    option = -1;
+                }
+            } catch (InputMismatchException inputExc) {
+                System.out.printf("Invalid input, please input a whole number in the range of [0; %d]%n", maxVal);
+                Banking.scanner.next();
+            } catch (Exception exc) {
+                System.out.println("An exception has occurred while trying to read user input.");
+                Banking.scanner.next();
+            }
+        }
+        return option;
+    }
+
     /* ------------------------------------------------- BANK ACCOUNT ACTION METHODS -------------------------------------------------*/
 
     private static void registerAccount() {
@@ -60,17 +65,15 @@ public class Banking {
         System.out.println("Bank account " + accounts.size() + " has been successfully registered.");
     }
 
+    private static void checkBalance() {
+        System.out.println("Please select which account's balance would you like to check: ");
+        int accountNum = getOption(0, Banking.accounts.size());
+        System.out.println("Bank account " + accountNum + " has an account balance of: " +  accounts.get(accountNum));
+    }
+
     /* ------------------------------------------------- UTIL METHODS -------------------------------------------------*/
 
     private static void printOptions() {
-        System.out.println("------------------------------------------");
-        System.out.println("0 - exit");
-        System.out.println("1 - register a bank account");
-        System.out.println("2 - check balance");
-        System.out.println("3 - deposit money");
-        System.out.println("4 - withdraw money");
-        System.out.println("5 - transfer money");
-        System.out.println("------------------------------------------");
-        System.out.println("Waiting for user input...");
+        System.out.println(Consts.MENU);
     }
 }
