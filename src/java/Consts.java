@@ -14,4 +14,5 @@ public class Consts {
         "Waiting for user input..." + System.lineSeparator()
     ;
 
+    public static final String DATE_PATTERN = "yyyy-MM-dd_HH-mm-ss";
 }

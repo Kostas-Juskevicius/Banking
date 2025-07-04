@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public class Banking extends JFrame {
-    private static final String DATE_PATTERN = "yyyy-MM-dd_HH-mm-ss";
     private final List<BankAccount> accounts = new ArrayList<>();
 
     private final JTextArea displayArea = new JTextArea();
@@ -258,7 +257,7 @@ public class Banking extends JFrame {
     }
 
     private FileWriter openTimestampedFile(String prefix) throws IOException {
-        String stamp = new SimpleDateFormat(DATE_PATTERN).format(new Date());
+        String stamp = new SimpleDateFormat(Consts.DATE_PATTERN).format(new Date());
         return new FileWriter(prefix + stamp + ".txt");
     }
 
