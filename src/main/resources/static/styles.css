@@ -156,6 +156,8 @@ body {
 .banking-app {
     background: #f8f9fa;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .banking-app.hidden {
@@ -165,8 +167,8 @@ body {
 .app-header {
     background: white;
     border-bottom: 1px solid #e9ecef;
-    padding: 0 24px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    flex-shrink: 0;
 }
 
 .header-content {
@@ -176,6 +178,7 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     height: 70px;
+    padding: 0 24px;
 }
 
 .app-logo {
@@ -198,9 +201,11 @@ body {
     color: #495057;
 }
 
+/* Navigation Styles - IMPROVED WITH WRAPPER */
 .app-nav {
     background: white;
     border-bottom: 1px solid #e9ecef;
+    flex-shrink: 0;
     padding: 0 24px;
 }
 
@@ -209,6 +214,7 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     gap: 8px;
+    overflow-x: auto;
 }
 
 .nav-item {
@@ -223,6 +229,8 @@ body {
     cursor: pointer;
     transition: all 0.3s ease;
     border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .nav-item:hover {
@@ -239,10 +247,13 @@ body {
     font-size: 1.1rem;
 }
 
+/* Main Content Area */
 .app-main {
+    flex: 1;
     max-width: 1200px;
     margin: 0 auto;
     padding: 32px 24px;
+    width: 100%;
 }
 
 .content-section {
@@ -257,19 +268,25 @@ body {
 .section-header {
     margin-bottom: 32px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.section-header div:first-child {
+    flex: 1;
 }
 
 .section-header h2 {
     font-size: 2rem;
     font-weight: 600;
     color: #212529;
+    margin-bottom: 4px;
 }
 
 .section-header p {
     color: #6c757d;
-    margin-top: 4px;
 }
 
 /* Dashboard Styles */
@@ -339,6 +356,12 @@ body {
     color: #212529;
 }
 
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 /* Accounts Styles */
 .accounts-grid {
     display: grid;
@@ -367,7 +390,7 @@ body {
     margin-bottom: 16px;
 }
 
-.account-type {
+.account-header h3 {
     font-size: 1.1rem;
     font-weight: 600;
     color: #212529;
@@ -377,6 +400,7 @@ body {
     font-size: 0.85rem;
     color: #6c757d;
     font-family: 'Courier New', monospace;
+    margin-bottom: 16px;
 }
 
 .account-type-badge {
@@ -434,6 +458,7 @@ body {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+    margin-bottom: 24px;
 }
 
 .transaction-filters select {
@@ -444,13 +469,12 @@ body {
     font-size: 0.9rem;
 }
 
-.transactions-table {
+.transactions-container {
     background: white;
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     border: 1px solid #e9ecef;
-    margin-top: 24px;
 }
 
 .transaction-list {
@@ -553,6 +577,11 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    transition: all 0.3s ease;
+}
+
+.form-row.hidden {
+    display: none;
 }
 
 /* Modal Styles */
@@ -583,6 +612,10 @@ body {
     overflow-y: auto;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
     animation: modalSlideIn 0.3s ease-out;
+}
+
+.account-modal {
+    max-width: 600px;
 }
 
 .modal-header {
@@ -618,6 +651,63 @@ body {
     padding: 24px;
 }
 
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.modal-actions .btn {
+    min-width: 100px;
+    width: auto;
+}
+
+/* Account Creation Modal Styles */
+.account-type-info {
+    margin-top: 16px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.account-info-card h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 8px;
+}
+
+.account-info-card p {
+    color: #6c757d;
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.account-info-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.account-info-card li {
+    padding: 4px 0;
+    color: #495057;
+    position: relative;
+    padding-left: 20px;
+}
+
+.account-info-card li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #28a745;
+    font-weight: bold;
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {
@@ -641,54 +731,82 @@ body {
     }
 }
 
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Loading states */
+.btn.loading {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
+.btn.loading:after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .auth-card {
         padding: 24px;
         margin: 16px;
     }
-    
+
     .bank-logo {
         font-size: 2rem;
     }
-    
+
     .header-content {
         padding: 0 16px;
     }
-    
+
     .app-main {
         padding: 24px 16px;
     }
-    
+
     .section-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 16px;
     }
-    
+
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .transaction-filters {
         flex-direction: column;
     }
-    
+
     .transaction-item {
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
     }
-    
+
     .nav-content {
         overflow-x: auto;
         padding-bottom: 8px;
     }
-    
+
     .nav-item {
         white-space: nowrap;
     }
@@ -698,11 +816,11 @@ body {
     .auth-card {
         padding: 20px;
     }
-    
+
     .transfer-form-container {
         padding: 20px;
     }
-    
+
     .modal {
         margin: 16px;
         width: calc(100% - 32px);
@@ -733,5 +851,12 @@ body {
 .loading {
     opacity: 0.6;
     pointer-events: none;
+}
+
+/* Success states */
+.form-group.success input,
+.form-group.success select {
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
 }
 

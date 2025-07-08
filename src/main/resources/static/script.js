@@ -4,102 +4,39 @@ let accounts = [];
 let balances = [];
 let transactions = [];
 
-// Mock data for demonstration
-const mockData = {
-    users: [
-        {
-            id: '550e8400-e29b-41d4-a716-446655440000',
-            fullName: 'John Doe',
-            email: 'john@example.com',
-            password: 'password123',
-            dateOfBirth: '1990-05-15'
+// API Configuration
+const API_BASE_URL = 'http://localhost:8080/api';
+
+// API Helper Functions
+async function apiCall(endpoint, options = {}) {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    };
+    
+    const finalOptions = { ...defaultOptions, ...options };
+    
+    try {
+        const response = await fetch(url, finalOptions);
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
-    ],
-    accounts: [
-        {
-            id: '550e8400-e29b-41d4-a716-446655440001',
-            accountNumber: 'ACC-001-2024',
-            type: 'CHECKING',
-            ownerId: '550e8400-e29b-41d4-a716-446655440000'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440002',
-            accountNumber: 'ACC-002-2024',
-            type: 'SAVINGS',
-            ownerId: '550e8400-e29b-41d4-a716-446655440000'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440003',
-            accountNumber: 'ACC-003-2024',
-            type: 'CREDIT',
-            ownerId: '550e8400-e29b-41d4-a716-446655440000'
+        
+        // Handle 204 No Content responses
+        if (response.status === 204) {
+            return null;
         }
-    ],
-    balances: [
-        {
-            id: '550e8400-e29b-41d4-a716-446655440010',
-            accountId: '550e8400-e29b-41d4-a716-446655440001',
-            amount: 5420.75,
-            currency: 'USD'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440011',
-            accountId: '550e8400-e29b-41d4-a716-446655440001',
-            amount: 1250.30,
-            currency: 'EUR'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440012',
-            accountId: '550e8400-e29b-41d4-a716-446655440002',
-            amount: 12500.00,
-            currency: 'USD'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440013',
-            accountId: '550e8400-e29b-41d4-a716-446655440003',
-            amount: -850.25,
-            currency: 'USD'
-        }
-    ],
-    transactions: [
-        {
-            id: '550e8400-e29b-41d4-a716-446655440020',
-            referenceNumber: 'TXN-001-2024',
-            debitAccountId: '550e8400-e29b-41d4-a716-446655440001',
-            creditAccountId: null,
-            amount: 150.00,
-            currency: 'USD',
-            type: 'WITHDRAWAL',
-            status: 'COMPLETED',
-            createdAt: '2024-01-15T10:30:00',
-            postedAt: '2024-01-15T10:30:05'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440021',
-            referenceNumber: 'TXN-002-2024',
-            debitAccountId: null,
-            creditAccountId: '550e8400-e29b-41d4-a716-446655440002',
-            amount: 2500.00,
-            currency: 'USD',
-            type: 'DEPOSIT',
-            status: 'COMPLETED',
-            createdAt: '2024-01-14T14:20:00',
-            postedAt: '2024-01-14T14:20:02'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440022',
-            referenceNumber: 'TXN-003-2024',
-            debitAccountId: '550e8400-e29b-41d4-a716-446655440001',
-            creditAccountId: '550e8400-e29b-41d4-a716-446655440002',
-            amount: 500.00,
-            currency: 'USD',
-            type: 'TRANSFER',
-            status: 'PENDING',
-            createdAt: '2024-01-16T09:15:00',
-            postedAt: null
-        }
-    ]
-};
+        
+        return await response.json();
+    } catch (error) {
+        console.error('API call failed:', error);
+        throw error;
+    }
+}
 
 // Utility functions
 function generateId() {
@@ -108,6 +45,12 @@ function generateId() {
         const v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
+}
+
+function generateAccountNumber() {
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `ACC-${timestamp}-${random}`;
 }
 
 function formatCurrency(amount, currency = 'USD') {
@@ -128,43 +71,61 @@ function formatDate(dateString) {
 }
 
 // Authentication functions
-function showLogin() {
-    document.getElementById('login-form').classList.add('active');
-    document.getElementById('signup-form').classList.remove('active');
-}
-
-function showSignup() {
-    document.getElementById('signup-form').classList.add('active');
-    document.getElementById('login-form').classList.remove('active');
-}
-
-function login(email, password) {
-    const user = mockData.users.find(u => u.email === email && u.password === password);
-    if (user) {
-        currentUser = user;
-        loadUserData();
-        showBankingApp();
+async function login(email, password) {
+    try {
+        const authData = await apiCall('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        });
+        
+        // Get customer data
+        const customerData = await apiCall(`/customers/${authData.customerId}`);
+        
+        currentUser = {
+            id: customerData.id,
+            fullName: customerData.fullName,
+            email: customerData.email,
+            dateOfBirth: customerData.dateOfBirth
+        };
+        
+        // Update user name in header
+        document.getElementById('user-name').textContent = `Welcome, ${currentUser.fullName}`;
+        
+        // Load user data
+        await loadUserData();
+        
+        showMainApp();
         return true;
-    }
-    return false;
-}
-
-function signup(userData) {
-    // Check if email already exists
-    if (mockData.users.find(u => u.email === userData.email)) {
+    } catch (error) {
+        console.error('Login failed:', error);
+        showModal('Login Failed', error.message || 'Invalid email or password. Please try again.');
         return false;
     }
-    
-    const newUser = {
-        id: generateId(),
-        ...userData
-    };
-    
-    mockData.users.push(newUser);
-    currentUser = newUser;
-    loadUserData();
-    showBankingApp();
-    return true;
+}
+
+async function signup(userData) {
+    try {
+        const customerData = await apiCall('/customers', {
+            method: 'POST',
+            body: JSON.stringify({
+                fullName: userData.fullName,
+                email: userData.email,
+                dateOfBirth: userData.dateOfBirth,
+                password: userData.password
+            })
+        });
+        
+        showModal('Account Created', 'Your account has been created successfully! Please log in.');
+        showLogin();
+        return true;
+    } catch (error) {
+        console.error('Signup failed:', error);
+        showModal('Signup Failed', error.message || 'An error occurred during signup.');
+        return false;
+    }
 }
 
 function logout() {
@@ -172,44 +133,61 @@ function logout() {
     accounts = [];
     balances = [];
     transactions = [];
-    showAuthContainer();
-}
-
-function showAuthContainer() {
-    document.getElementById('auth-container').classList.remove('hidden');
-    document.getElementById('banking-app').classList.add('hidden');
-}
-
-function showBankingApp() {
-    document.getElementById('auth-container').classList.add('hidden');
-    document.getElementById('banking-app').classList.remove('hidden');
-    document.getElementById('user-name').textContent = `Welcome, ${currentUser.fullName}`;
-    showSection('dashboard');
+    showLogin();
 }
 
 // Data loading functions
-function loadUserData() {
+async function loadUserData() {
     if (!currentUser) return;
     
-    // Load user's accounts
-    accounts = mockData.accounts.filter(acc => acc.ownerId === currentUser.id);
-    
-    // Load balances for user's accounts
-    const accountIds = accounts.map(acc => acc.id);
-    balances = mockData.balances.filter(bal => accountIds.includes(bal.accountId));
-    
-    // Load transactions for user's accounts
-    transactions = mockData.transactions.filter(txn => 
-        accountIds.includes(txn.debitAccountId) || accountIds.includes(txn.creditAccountId)
-    );
-    
-    updateDashboard();
-    updateAccountsSection();
-    updateTransactionsSection();
-    updateTransferForm();
+    try {
+        // Load accounts
+        accounts = await apiCall(`/accounts/customer/${currentUser.id}`);
+        
+        // Load balances for all accounts
+        balances = [];
+        for (const account of accounts) {
+            const accountBalances = await apiCall(`/balances/account/${account.id}`);
+            balances.push(...accountBalances);
+        }
+        
+        // Load transactions for all accounts
+        transactions = [];
+        for (const account of accounts) {
+            const accountTransactions = await apiCall(`/transactions/account/${account.id}`);
+            transactions.push(...accountTransactions);
+        }
+        
+        // Update displays
+        updateDashboard();
+        updateAccountsSection();
+        updateTransactionsSection();
+        updateTransferForm();
+    } catch (error) {
+        console.error('Failed to load user data:', error);
+        showModal('Error', 'Failed to load account data. Please try refreshing the page.');
+    }
 }
 
-// Navigation functions
+// UI functions
+function showLogin() {
+    document.getElementById('auth-container').classList.remove('hidden');
+    document.getElementById('banking-app').classList.add('hidden');
+    document.getElementById('login-form').classList.add('active');
+    document.getElementById('signup-form').classList.remove('active');
+}
+
+function showSignup() {
+    document.getElementById('login-form').classList.remove('active');
+    document.getElementById('signup-form').classList.add('active');
+}
+
+function showMainApp() {
+    document.getElementById('auth-container').classList.add('hidden');
+    document.getElementById('banking-app').classList.remove('hidden');
+    showSection('dashboard');
+}
+
 function showSection(sectionName) {
     // Hide all sections
     document.querySelectorAll('.content-section').forEach(section => {
@@ -222,38 +200,68 @@ function showSection(sectionName) {
     });
     
     // Show selected section
-    document.getElementById(`${sectionName}-section`).classList.add('active');
+    const targetSection = document.getElementById(`${sectionName}-section`);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
     
     // Add active class to selected nav item
-    document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+    const targetNavItem = document.querySelector(`[data-section="${sectionName}"]`);
+    if (targetNavItem) {
+        targetNavItem.classList.add('active');
+    }
+    
+    // Update section-specific data
+    switch(sectionName) {
+        case 'dashboard':
+            updateDashboard();
+            break;
+        case 'accounts':
+            updateAccountsSection();
+            break;
+        case 'transactions':
+            updateTransactionsSection();
+            break;
+        case 'transfer':
+            updateTransferForm();
+            break;
+    }
 }
 
 // Dashboard functions
 function updateDashboard() {
-    // Calculate total balance
-    const totalBalance = balances.reduce((total, balance) => {
-        // Convert all to USD for simplicity (in real app, use exchange rates)
-        return total + balance.amount;
-    }, 0);
-    
-    document.getElementById('total-balance').textContent = formatCurrency(totalBalance);
-    document.getElementById('account-count').textContent = accounts.length;
-    document.getElementById('transaction-count').textContent = transactions.length;
-    
-    // Update recent transactions
-    updateRecentTransactions();
+    updateDashboardStats();
+    updateRecentActivity();
 }
 
-function updateRecentTransactions() {
-    const recentTransactions = transactions
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 5);
+function updateDashboardStats() {
+    // Calculate total balance across all accounts and currencies
+    const totalUSD = balances
+        .filter(balance => balance.currency === 'USD')
+        .reduce((sum, balance) => sum + parseFloat(balance.amount), 0);
     
-    const container = document.getElementById('recent-transactions');
+    document.getElementById('total-balance').textContent = formatCurrency(totalUSD);
+    document.getElementById('account-count').textContent = accounts.length;
+    
+    // Calculate this month's transactions
+    const thisMonth = new Date();
+    thisMonth.setDate(1);
+    const thisMonthTransactions = transactions.filter(txn => 
+        new Date(txn.createdAt) >= thisMonth
+    );
+    document.getElementById('transaction-count').textContent = thisMonthTransactions.length;
+}
+
+function updateRecentActivity() {
+    const container = document.getElementById('recent-activity');
     container.innerHTML = '';
     
+    const recentTransactions = transactions
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 3);
+    
     if (recentTransactions.length === 0) {
-        container.innerHTML = '<p class="text-muted">No recent transactions</p>';
+        container.innerHTML = '<div class="text-center text-muted" style="padding: 40px;">No recent activity</div>';
         return;
     }
     
@@ -263,15 +271,115 @@ function updateRecentTransactions() {
     });
 }
 
-// Accounts functions
+// Account functions
 function updateAccountsSection() {
     const container = document.getElementById('accounts-grid');
     container.innerHTML = '';
+    
+    if (accounts.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted" style="padding: 40px; grid-column: 1 / -1;">No accounts found. Create your first account to get started!</div>';
+        return;
+    }
     
     accounts.forEach(account => {
         const accountCard = createAccountCard(account);
         container.appendChild(accountCard);
     });
+}
+
+async function createAccount(accountData) {
+    try {
+        // Create account
+        const newAccount = await apiCall('/accounts', {
+            method: 'POST',
+            body: JSON.stringify({
+                accountNumber: generateAccountNumber(),
+                type: accountData.accountType,
+                ownerId: currentUser.id
+            })
+        });
+        
+        // Create initial balance if deposit amount is provided
+        if (accountData.initialDeposit && parseFloat(accountData.initialDeposit) > 0) {
+            const newBalance = await apiCall('/balances', {
+                method: 'POST',
+                body: JSON.stringify({
+                    accountId: newAccount.id,
+                    amount: parseFloat(accountData.initialDeposit),
+                    currency: accountData.depositCurrency
+                })
+            });
+            
+            // Create a deposit transaction
+            const depositTransaction = await apiCall('/transactions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    referenceNumber: `TXN-${Date.now()}`,
+                    debitAccountId: null,
+                    creditAccountId: newAccount.id,
+                    amount: parseFloat(accountData.initialDeposit),
+                    currency: accountData.depositCurrency,
+                    type: 'DEPOSIT',
+                    status: 'COMPLETED'
+                })
+            });
+        }
+        
+        // Reload user data
+        await loadUserData();
+        
+        return newAccount;
+    } catch (error) {
+        console.error('Account creation failed:', error);
+        throw error;
+    }
+}
+
+function showAccountCreationModal() {
+    document.getElementById('account-modal-overlay').classList.remove('hidden');
+}
+
+function hideAccountCreationModal() {
+    document.getElementById('account-modal-overlay').classList.add('hidden');
+    document.getElementById('create-account-form').reset();
+    updateAccountTypeInfo('');
+}
+
+function updateAccountTypeInfo(accountType) {
+    const infoDiv = document.getElementById('account-type-info');
+    
+    const accountTypeDescriptions = {
+        'CHECKING': {
+            title: 'Checking Account',
+            description: 'Perfect for everyday transactions, bill payments, and direct deposits. No minimum balance required.',
+            features: ['Unlimited transactions', 'Debit card included', 'Online banking', 'Mobile deposits']
+        },
+        'SAVINGS': {
+            title: 'Savings Account',
+            description: 'Earn interest on your deposits while keeping your money safe and accessible.',
+            features: ['Competitive interest rates', 'FDIC insured', 'Online transfers', 'Automatic savings plans']
+        },
+        'CREDIT': {
+            title: 'Credit Account',
+            description: 'Build credit history with responsible spending and flexible payment options.',
+            features: ['Credit building', 'Rewards program', 'Fraud protection', 'Emergency access to funds']
+        }
+    };
+    
+    if (accountType && accountTypeDescriptions[accountType]) {
+        const info = accountTypeDescriptions[accountType];
+        infoDiv.innerHTML = `
+            <div class="account-info-card">
+                <h4>${info.title}</h4>
+                <p>${info.description}</p>
+                <ul>
+                    ${info.features.map(feature => `<li>${feature}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    } else {
+        infoDiv.innerHTML = '<p class="text-muted">Select an account type to see details</p>';
+    }
 }
 
 function createAccountCard(account) {
@@ -281,30 +389,28 @@ function createAccountCard(account) {
     card.className = 'account-card';
     
     const typeClass = account.type.toLowerCase();
-    const typeName = account.type.charAt(0) + account.type.slice(1).toLowerCase();
+    const typeLabel = account.type.charAt(0) + account.type.slice(1).toLowerCase();
     
     card.innerHTML = `
         <div class="account-header">
-            <div>
-                <div class="account-type">${typeName} Account</div>
-                <div class="account-number">${account.accountNumber}</div>
-            </div>
+            <h3>${typeLabel} Account</h3>
             <span class="account-type-badge ${typeClass}">${account.type}</span>
         </div>
+        <div class="account-number">${account.accountNumber}</div>
         <div class="account-balances">
-            ${accountBalances.map(balance => `
+            ${accountBalances.length > 0 ? accountBalances.map(balance => `
                 <div class="balance-item">
                     <span class="currency-code">${balance.currency}</span>
                     <span class="balance-value">${formatCurrency(balance.amount, balance.currency)}</span>
                 </div>
-            `).join('')}
+            `).join('') : '<div class="balance-item"><span class="currency-code">USD</span><span class="balance-value">$0.00</span></div>'}
         </div>
     `;
     
     return card;
 }
 
-// Transactions functions
+// Transaction functions
 function updateTransactionsSection() {
     updateTransactionFilters();
     displayTransactions();
@@ -373,6 +479,11 @@ function createTransactionItem(transaction) {
         details = `From ${debitAccount.accountNumber}`;
     } else if (creditAccount) {
         details = `To ${creditAccount.accountNumber}`;
+    } else if (transaction.externalAccountNumber) {
+        details = `To ${transaction.externalAccountNumber}`;
+        if (transaction.recipientName) {
+            details += ` (${transaction.recipientName})`;
+        }
     }
     
     item.innerHTML = `
@@ -438,32 +549,149 @@ function updateTransferForm() {
     });
 }
 
-function processTransfer(formData) {
-    const newTransaction = {
-        id: generateId(),
-        referenceNumber: `TXN-${Date.now()}`,
-        debitAccountId: formData.fromAccount,
-        creditAccountId: formData.toAccount,
-        amount: parseFloat(formData.amount),
-        currency: formData.currency,
-        type: 'TRANSFER',
-        status: 'PENDING',
-        createdAt: new Date().toISOString(),
-        postedAt: null
-    };
+function toggleTransferType() {
+    const transferType = document.getElementById('transfer-type').value;
+    const internalRow = document.getElementById('internal-transfer-row');
+    const externalRow = document.getElementById('external-transfer-row');
+    const toAccountSelect = document.getElementById('to-account');
+    const externalAccountInput = document.getElementById('external-account-number');
+    const recipientNameInput = document.getElementById('recipient-name');
     
-    mockData.transactions.push(newTransaction);
-    transactions.push(newTransaction);
-    
-    // Update displays
-    updateDashboard();
-    updateTransactionsSection();
-    
-    showModal('Transfer Successful', `
-        <p>Your transfer of ${formatCurrency(newTransaction.amount, newTransaction.currency)} has been initiated.</p>
-        <p><strong>Reference:</strong> ${newTransaction.referenceNumber}</p>
-        <p><strong>Status:</strong> Pending</p>
-    `);
+    if (transferType === 'external') {
+        internalRow.classList.add('hidden');
+        externalRow.classList.remove('hidden');
+        toAccountSelect.removeAttribute('required');
+        externalAccountInput.setAttribute('required', 'required');
+        recipientNameInput.setAttribute('required', 'required');
+    } else {
+        internalRow.classList.remove('hidden');
+        externalRow.classList.add('hidden');
+        toAccountSelect.setAttribute('required', 'required');
+        externalAccountInput.removeAttribute('required');
+        recipientNameInput.removeAttribute('required');
+    }
+}
+
+async function processTransfer(formData) {
+    try {
+        const transferType = formData.transferType;
+        let creditAccountId = null;
+        let externalAccountNumber = null;
+        let recipientName = null;
+        
+        if (transferType === 'internal') {
+            creditAccountId = formData.toAccount;
+        } else {
+            externalAccountNumber = formData.externalAccountNumber;
+            recipientName = formData.recipientName;
+        }
+        
+        // Create transaction
+        const transactionData = {
+            referenceNumber: `TXN-${Date.now()}`,
+            debitAccountId: formData.fromAccount,
+            creditAccountId: creditAccountId,
+            amount: parseFloat(formData.amount),
+            currency: formData.currency,
+            type: 'TRANSFER',
+            status: 'COMPLETED'
+        };
+        
+        if (externalAccountNumber) {
+            transactionData.externalAccountNumber = externalAccountNumber;
+        }
+        if (recipientName) {
+            transactionData.recipientName = recipientName;
+        }
+        if (formData.description) {
+            transactionData.description = formData.description;
+        }
+        
+        const newTransaction = await apiCall('/transactions', {
+            method: 'POST',
+            body: JSON.stringify(transactionData)
+        });
+        
+        // Update balances for internal transfers
+        if (transferType === 'internal') {
+            // Debit from source account
+            const fromAccountBalances = balances.filter(b => b.accountId === formData.fromAccount && b.currency === formData.currency);
+            if (fromAccountBalances.length > 0) {
+                const fromBalance = fromAccountBalances[0];
+                await apiCall(`/balances/${fromBalance.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        ...fromBalance,
+                        amount: parseFloat(fromBalance.amount) - parseFloat(formData.amount)
+                    })
+                });
+            }
+            
+            // Credit to destination account
+            const toAccountBalances = balances.filter(b => b.accountId === formData.toAccount && b.currency === formData.currency);
+            if (toAccountBalances.length > 0) {
+                const toBalance = toAccountBalances[0];
+                await apiCall(`/balances/${toBalance.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        ...toBalance,
+                        amount: parseFloat(toBalance.amount) + parseFloat(formData.amount)
+                    })
+                });
+            } else {
+                // Create new balance if it doesn't exist
+                await apiCall('/balances', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        accountId: formData.toAccount,
+                        amount: parseFloat(formData.amount),
+                        currency: formData.currency
+                    })
+                });
+            }
+        } else {
+            // For external transfers, only debit from source account
+            const fromAccountBalances = balances.filter(b => b.accountId === formData.fromAccount && b.currency === formData.currency);
+            if (fromAccountBalances.length > 0) {
+                const fromBalance = fromAccountBalances[0];
+                await apiCall(`/balances/${fromBalance.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        ...fromBalance,
+                        amount: parseFloat(fromBalance.amount) - parseFloat(formData.amount)
+                    })
+                });
+            }
+        }
+        
+        // Reload user data to reflect changes
+        await loadUserData();
+        
+        let transferMessage = '';
+        if (transferType === 'internal') {
+            const toAccount = accounts.find(acc => acc.id === creditAccountId);
+            transferMessage = `
+                <p>Your transfer of ${formatCurrency(newTransaction.amount, newTransaction.currency)} has been completed successfully!</p>
+                <p><strong>To:</strong> ${toAccount.accountNumber} (${toAccount.type})</p>
+                <p><strong>Reference:</strong> ${newTransaction.referenceNumber}</p>
+                <p><strong>Status:</strong> ${newTransaction.status}</p>
+            `;
+        } else {
+            transferMessage = `
+                <p>Your external transfer of ${formatCurrency(newTransaction.amount, newTransaction.currency)} has been initiated.</p>
+                <p><strong>To:</strong> ${formData.externalAccountNumber}</p>
+                <p><strong>Recipient:</strong> ${formData.recipientName}</p>
+                <p><strong>Reference:</strong> ${newTransaction.referenceNumber}</p>
+                <p><strong>Status:</strong> ${newTransaction.status}</p>
+                <p class="text-muted mt-2">External transfers may take 1-3 business days to complete.</p>
+            `;
+        }
+        
+        showModal('Transfer Successful', transferMessage);
+    } catch (error) {
+        console.error('Transfer failed:', error);
+        showModal('Transfer Failed', error.message || 'An error occurred while processing the transfer.');
+    }
 }
 
 // Modal functions
@@ -479,7 +707,7 @@ function hideModal() {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Auth form toggles
+    // Auth toggle
     document.getElementById('show-signup').addEventListener('click', function(e) {
         e.preventDefault();
         showSignup();
@@ -497,11 +725,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const email = formData.get('email');
         const password = formData.get('password');
         
-        if (login(email, password)) {
-            e.target.reset();
-        } else {
-            showModal('Login Failed', 'Invalid email or password. Please try again.');
-        }
+        login(email, password).then(success => {
+            if (success) {
+                e.target.reset();
+            }
+        });
     });
     
     // Signup form
@@ -523,11 +751,11 @@ document.addEventListener('DOMContentLoaded', function() {
             password: password
         };
         
-        if (signup(userData)) {
-            e.target.reset();
-        } else {
-            showModal('Signup Failed', 'An account with this email already exists.');
-        }
+        signup(userData).then(success => {
+            if (success) {
+                e.target.reset();
+            }
+        });
     });
     
     // Navigation
@@ -546,28 +774,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('status-filter').addEventListener('change', filterTransactions);
     document.getElementById('type-filter').addEventListener('change', filterTransactions);
     
-    // Transfer form
-    document.getElementById('transfer-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const transferData = {
-            fromAccount: formData.get('fromAccount'),
-            toAccount: formData.get('toAccount'),
-            amount: formData.get('amount'),
-            currency: formData.get('currency'),
-            description: formData.get('description')
-        };
-        
-        if (transferData.fromAccount === transferData.toAccount) {
-            showModal('Transfer Error', 'Cannot transfer to the same account.');
-            return;
-        }
-        
-        processTransfer(transferData);
-        e.target.reset();
-    });
-    
-    // Modal close
+    // Modal close handlers
     document.querySelector('.modal-close').addEventListener('click', hideModal);
     document.getElementById('modal-overlay').addEventListener('click', function(e) {
         if (e.target === this) {
@@ -575,18 +782,86 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Create account button (placeholder)
-    document.getElementById('create-account-btn').addEventListener('click', function() {
-        showModal('Create Account', `
-            <p>Account creation feature would be implemented here.</p>
-            <p>This would typically include:</p>
-            <ul>
-                <li>Account type selection</li>
-                <li>Initial deposit amount</li>
-                <li>Terms and conditions</li>
-                <li>Identity verification</li>
-            </ul>
-        `);
+    // Transfer type toggle
+    document.getElementById('transfer-type').addEventListener('change', toggleTransferType);
+    
+    // Transfer form
+    document.getElementById('transfer-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const transferType = formData.get('transferType');
+        
+        const transferData = {
+            transferType: transferType,
+            fromAccount: formData.get('fromAccount'),
+            toAccount: formData.get('toAccount'),
+            externalAccountNumber: formData.get('externalAccountNumber'),
+            recipientName: formData.get('recipientName'),
+            amount: formData.get('amount'),
+            currency: formData.get('currency'),
+            description: formData.get('description')
+        };
+        
+        // Validation
+        if (transferType === 'internal' && transferData.fromAccount === transferData.toAccount) {
+            showModal('Transfer Error', 'Cannot transfer to the same account.');
+            return;
+        }
+        
+        if (transferType === 'external' && (!transferData.externalAccountNumber || !transferData.recipientName)) {
+            showModal('Transfer Error', 'Please provide external account number and recipient name.');
+            return;
+        }
+        
+        processTransfer(transferData).then(() => {
+            e.target.reset();
+            toggleTransferType(); // Reset form visibility
+        });
+    });
+    
+    // Account creation modal
+    document.getElementById('create-account-btn').addEventListener('click', showAccountCreationModal);
+    document.getElementById('account-modal-close').addEventListener('click', hideAccountCreationModal);
+    document.getElementById('cancel-account-creation').addEventListener('click', hideAccountCreationModal);
+    
+    // Account type selection
+    document.getElementById('account-type').addEventListener('change', function(e) {
+        updateAccountTypeInfo(e.target.value);
+    });
+    
+    // Account creation form
+    document.getElementById('create-account-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        
+        const accountData = {
+            accountType: formData.get('accountType'),
+            initialDeposit: formData.get('initialDeposit'),
+            depositCurrency: formData.get('depositCurrency')
+        };
+        
+        createAccount(accountData).then(newAccount => {
+            hideAccountCreationModal();
+            
+            showModal('Account Created Successfully', `
+                <p>Your new ${accountData.accountType.toLowerCase()} account has been created!</p>
+                <p><strong>Account Number:</strong> ${newAccount.accountNumber}</p>
+                <p><strong>Account Type:</strong> ${newAccount.type}</p>
+                ${accountData.initialDeposit && parseFloat(accountData.initialDeposit) > 0 ? 
+                    `<p><strong>Initial Deposit:</strong> ${formatCurrency(parseFloat(accountData.initialDeposit), accountData.depositCurrency)}</p>` : 
+                    ''
+                }
+                <p class="text-muted mt-2">You can now use this account for transfers and transactions.</p>
+            `);
+        }).catch(error => {
+            showModal('Account Creation Failed', error.message || 'An error occurred while creating the account.');
+        });
+    });
+    
+    document.getElementById('account-modal-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideAccountCreationModal();
+        }
     });
     
     // Initialize with login form

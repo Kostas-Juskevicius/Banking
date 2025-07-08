@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scuffed Unsecure Bank - Your Digital Banking Partner</title>
+    <title>Scuffed and Unsecure Bank - Your Digital Banking Partner</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Login/Signup Container -->
+    <!-- Authentication Container -->
     <div id="auth-container" class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
-                <h1 class="bank-logo">Scuffed Unsecure Bank</h1>
+                <h1 class="bank-logo">Scuffed and Unsecure Bank</h1>
                 <p class="bank-tagline">Your Untrustable Banking Partner</p>
             </div>
             
@@ -20,19 +20,16 @@
                 <h2>Welcome Back</h2>
                 <form id="loginForm">
                     <div class="form-group">
-                        <label for="login-email">Email Address</label>
-                        <input type="email" id="login-email" name="email" required>
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" required>
                     </div>
                     <div class="form-group">
-                        <label for="login-password">Password</label>
-                        <input type="password" id="login-password" name="password" required>
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Sign In</button>
                 </form>
-                <p class="auth-switch">
-                    Don't have an account? 
-                    <a href="#" id="show-signup">Create Account</a>
-                </p>
+                <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Create Account</a></p>
             </div>
             
             <!-- Signup Form -->
@@ -40,31 +37,28 @@
                 <h2>Create Account</h2>
                 <form id="signupForm">
                     <div class="form-group">
-                        <label for="signup-fullname">Full Name</label>
-                        <input type="text" id="signup-fullname" name="fullName" required>
+                        <label for="fullName">Full Name</label>
+                        <input type="text" id="fullName" name="fullName" required>
                     </div>
                     <div class="form-group">
-                        <label for="signup-email">Email Address</label>
-                        <input type="email" id="signup-email" name="email" required>
+                        <label for="signupEmail">Email Address</label>
+                        <input type="email" id="signupEmail" name="email" required>
                     </div>
                     <div class="form-group">
-                        <label for="signup-dob">Date of Birth</label>
-                        <input type="date" id="signup-dob" name="dateOfBirth" required>
+                        <label for="dateOfBirth">Date of Birth</label>
+                        <input type="date" id="dateOfBirth" name="dateOfBirth" required>
                     </div>
                     <div class="form-group">
-                        <label for="signup-password">Password</label>
-                        <input type="password" id="signup-password" name="password" required>
+                        <label for="signupPassword">Password</label>
+                        <input type="password" id="signupPassword" name="password" required>
                     </div>
                     <div class="form-group">
-                        <label for="signup-confirm-password">Confirm Password</label>
-                        <input type="password" id="signup-confirm-password" name="confirmPassword" required>
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Create Account</button>
                 </form>
-                <p class="auth-switch">
-                    Already have an account? 
-                    <a href="#" id="show-login">Sign In</a>
-                </p>
+                <p class="auth-switch">Already have an account? <a href="#" id="show-login">Sign In</a></p>
             </div>
         </div>
     </div>
@@ -74,16 +68,16 @@
         <!-- Header -->
         <header class="app-header">
             <div class="header-content">
-                <h1 class="app-logo">Scuffed Unsecure Bank</h1>
+                <h1 class="app-logo">Scuffed and Unsecure Bank</h1>
                 <div class="header-actions">
-                    <span id="user-name" class="user-name">Welcome, User</span>
+                    <span id="user-name" class="user-name">Welcome, John Doe</span>
                     <button id="logout-btn" class="btn btn-secondary">Logout</button>
                 </div>
             </div>
         </header>
 
         <!-- Navigation -->
-        <nav class="app-nav>
+        <nav class="app-nav">
             <div class="nav-content">
                 <button class="nav-item active" data-section="dashboard">
                     <span class="nav-icon">📊</span>
@@ -109,8 +103,10 @@
             <!-- Dashboard Section -->
             <section id="dashboard-section" class="content-section active">
                 <div class="section-header">
-                    <h2>Dashboard</h2>
-                    <p>Overview of your banking activity</p>
+                    <div>
+                        <h2>Dashboard</h2>
+                        <p>Overview of your banking activity</p>
+                    </div>
                 </div>
                 
                 <div class="dashboard-grid">
@@ -135,7 +131,7 @@
 
                 <div class="recent-activity">
                     <h3>Recent Activity</h3>
-                    <div id="recent-transactions" class="transaction-list">
+                    <div id="recent-activity" class="activity-list">
                         <!-- Recent transactions will be populated here -->
                     </div>
                 </div>
@@ -144,8 +140,11 @@
             <!-- Accounts Section -->
             <section id="accounts-section" class="content-section">
                 <div class="section-header">
-                    <h2>My Accounts</h2>
-                    <button class="btn btn-primary" id="create-account-btn">Create Account</button>
+                    <div>
+                        <h2>My Accounts</h2>
+                        <p>Manage your banking accounts</p>
+                    </div>
+                    <button id="create-account-btn" class="btn btn-primary">Create Account</button>
                 </div>
                 
                 <div id="accounts-grid" class="accounts-grid">
@@ -156,40 +155,42 @@
             <!-- Transactions Section -->
             <section id="transactions-section" class="content-section">
                 <div class="section-header">
-                    <h2>Transaction History</h2>
-                    <div class="transaction-filters">
-                        <select id="account-filter">
-                            <option value="">All Accounts</option>
-                        </select>
-                        <select id="status-filter">
-                            <option value="">All Status</option>
-                            <option value="PENDING">Pending</option>
-                            <option value="COMPLETED">Completed</option>
-                            <option value="FAILED">Failed</option>
-                            <option value="CANCELLED">Cancelled</option>
-                        </select>
-                        <select id="type-filter">
-                            <option value="">All Types</option>
-                            <option value="DEPOSIT">Deposit</option>
-                            <option value="WITHDRAWAL">Withdrawal</option>
-                            <option value="TRANSFER">Transfer</option>
-                            <option value="PAYMENT">Payment</option>
-                            <option value="FEE">Fee</option>
-                            <option value="INTEREST">Interest</option>
-                        </select>
+                    <div>
+                        <h2>Transaction History</h2>
+                        <p>View and filter your transaction history</p>
                     </div>
                 </div>
                 
-                <div id="transactions-table" class="transactions-table">
-                    <!-- Transaction table will be populated here -->
+                <div class="transaction-filters">
+                    <select id="account-filter">
+                        <option value="">All Accounts</option>
+                    </select>
+                    <select id="status-filter">
+                        <option value="">All Status</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="FAILED">Failed</option>
+                    </select>
+                    <select id="type-filter">
+                        <option value="">All Types</option>
+                        <option value="DEPOSIT">Deposit</option>
+                        <option value="WITHDRAWAL">Withdrawal</option>
+                        <option value="TRANSFER">Transfer</option>
+                    </select>
+                </div>
+                
+                <div id="transactions-table" class="transactions-container">
+                    <!-- Transactions will be populated here -->
                 </div>
             </section>
 
             <!-- Transfer Section -->
             <section id="transfer-section" class="content-section">
                 <div class="section-header">
-                    <h2>Transfer Money</h2>
-                    <p>Send money between accounts or to external recipients</p>
+                    <div>
+                        <h2>Transfer Money</h2>
+                        <p>Send money between accounts or to external recipients</p>
+                    </div>
                 </div>
                 
                 <div class="transfer-form-container">
@@ -202,6 +203,16 @@
                                 </select>
                             </div>
                             <div class="form-group">
+                                <label for="transfer-type">Transfer Type</label>
+                                <select id="transfer-type" name="transferType" required>
+                                    <option value="internal">Between My Accounts</option>
+                                    <option value="external">To External Account</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="internal-transfer-row" class="form-row">
+                            <div class="form-group">
                                 <label for="to-account">To Account</label>
                                 <select id="to-account" name="toAccount" required>
                                     <option value="">Select account</option>
@@ -209,14 +220,25 @@
                             </div>
                         </div>
                         
-                        <div class="form-row">
+                        <div id="external-transfer-row" class="form-row hidden">
                             <div class="form-group">
-                                <label for="transfer-amount">Amount</label>
-                                <input type="number" id="transfer-amount" name="amount" step="0.01" min="0.01" required>
+                                <label for="external-account-number">External Account Number</label>
+                                <input type="text" id="external-account-number" name="externalAccountNumber" placeholder="Enter account number">
                             </div>
                             <div class="form-group">
-                                <label for="transfer-currency">Currency</label>
-                                <select id="transfer-currency" name="currency" required>
+                                <label for="recipient-name">Recipient Name</label>
+                                <input type="text" id="recipient-name" name="recipientName" placeholder="Enter recipient name">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="amount">Amount</label>
+                                <input type="number" id="amount" name="amount" step="0.01" min="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="currency">Currency</label>
+                                <select id="currency" name="currency" required>
                                     <option value="USD">USD</option>
                                     <option value="EUR">EUR</option>
                                     <option value="GBP">GBP</option>
@@ -230,8 +252,8 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="transfer-description">Description (Optional)</label>
-                            <input type="text" id="transfer-description" name="description" placeholder="What's this transfer for?">
+                            <label for="description">Description (Optional)</label>
+                            <input type="text" id="description" name="description" placeholder="What's this transfer for?">
                         </div>
                         
                         <button type="submit" class="btn btn-primary">Transfer Money</button>
@@ -246,10 +268,61 @@
         <div class="modal">
             <div class="modal-header">
                 <h3 id="modal-title">Modal Title</h3>
-                <button class="modal-close">&times;</button>
+                <button class="modal-close">×</button>
             </div>
             <div class="modal-body" id="modal-body">
-                <!-- Modal content will be populated here -->
+                Modal content goes here
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Creation Modal -->
+    <div id="account-modal-overlay" class="modal-overlay hidden">
+        <div class="modal account-modal">
+            <div class="modal-header">
+                <h3>Create New Account</h3>
+                <button id="account-modal-close" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="create-account-form">
+                    <div class="form-group">
+                        <label for="account-type">Account Type</label>
+                        <select id="account-type" name="accountType" required>
+                            <option value="">Select account type</option>
+                            <option value="CHECKING">Checking Account</option>
+                            <option value="SAVINGS">Savings Account</option>
+                            <option value="CREDIT">Credit Account</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="initial-deposit">Initial Deposit</label>
+                        <input type="number" id="initial-deposit" name="initialDeposit" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="deposit-currency">Currency</label>
+                        <select id="deposit-currency" name="depositCurrency">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                            <option value="JPY">JPY</option>
+                            <option value="AUD">AUD</option>
+                            <option value="CAD">CAD</option>
+                            <option value="CNY">CNY</option>
+                            <option value="NZD">NZD</option>
+                        </select>
+                    </div>
+                    
+                    <div id="account-type-info" class="account-type-info">
+                        <p class="text-muted">Select an account type to see details</p>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" id="cancel-account-creation" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Account</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
