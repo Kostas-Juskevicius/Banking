@@ -6,6 +6,7 @@ import com.kostas.banking.dto.CustomerUpdateDTO;
 import com.kostas.banking.service.CustomerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/customers")
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class CustomerController {
 
     @GetMapping("/{id}")
     public ResponseEntity<CustomerDTO> getCustomer(@PathVariable UUID id) {
+        log.debug("Received request to get customer with id: {}", id);
         return ResponseEntity.ok(customerService.getCustomer(id));
     }
 

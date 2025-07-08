@@ -9,12 +9,14 @@ import com.kostas.banking.exception.InvalidCredentialsException;
 import com.kostas.banking.model.Customer;
 import com.kostas.banking.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CustomerService {
@@ -23,6 +25,7 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public CustomerDTO getCustomer(UUID id) {
+        log.info("Fetching customer with id: {}", id);
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new CustomerNotFoundException(id));
         return CustomerDTO.fromEntity(customer);
@@ -63,6 +66,7 @@ public class CustomerService {
 
     @Transactional
     public CustomerDTO createCustomer(CustomerCreateDTO dto) {
+        log.info("Creating customer with email: {}", dto.email());
         if (customerRepository.existsByEmail(dto.email())) {
             throw new EmailAlreadyExistsException(dto.email());
         }
