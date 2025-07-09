@@ -156,7 +156,7 @@ async function loadUserData() {
         for (const account of accounts) {
             try {
                 // Try to load transactions by debit account
-                const debitTransactions = await apiCall(`/transactions/debit-account/${account.id}`);
+                const debitTransactions = await apiCall(`/transactions/debitAccount/${account.id}`);
                 transactions.push(...debitTransactions);
             } catch (error) {
                 console.warn(`Failed to load debit transactions for account ${account.id}:`, error);
@@ -164,7 +164,7 @@ async function loadUserData() {
             
             try {
                 // Try to load transactions by credit account
-                const creditTransactions = await apiCall(`/transactions/credit-account/${account.id}`);
+                const creditTransactions = await apiCall(`/transactions/creditAccount/${account.id}`);
                 transactions.push(...creditTransactions);
             } catch (error) {
                 console.warn(`Failed to load credit transactions for account ${account.id}:`, error);

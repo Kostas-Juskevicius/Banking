@@ -24,6 +24,7 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
+    private final BalanceService balanceService;
 
     @Transactional(readOnly = true)
     public TransactionDTO getTransaction(UUID id) {
@@ -81,11 +82,36 @@ public class TransactionService {
         if (dto.debitAccountId() != null) {
             debitAccount = accountRepository.findById(dto.debitAccountId())
                     .orElseThrow(() -> new AccountNotFoundException(dto.debitAccountId()));
+            
+            // Check if account has sufficient balance for withdrawal/transfer
+            if (dto.type().equals(com.kostas.banking.enums.TransactionType.WITHDRAWAL) || 
+                dto.type().equals(com.kostas.banking.enums.TransactionType.TRANSFER)) {
+                
+                // Get current balance for the account in the transaction currency
+                List<com.kostas.banking.dto.BalanceDTO> accountBalances = balanceService.getBalancesByAccountId(dto.debitAccountId());
+                java.math.BigDecimal currentBalance = java.math.BigDecimal.ZERO;
+                
+                for (com.kostas.banking.dto.BalanceDTO balance : accountBalances) {
+                    if (balance.currency().equals(dto.currency())) {
+                        currentBalance = currentBalance.add(balance.amount());
+                    }
+                }
+                
+                // Check if sufficient funds are available
+                if (currentBalance.compareTo(dto.amount()) < 0) {
+                    throw new IllegalArgumentException("Insufficient funds. Available balance: " + currentBalance + " " + dto.currency() + ", Required: " + dto.amount() + " " + dto.currency());
+                }
+            }
         }
 
         if (dto.creditAccountId() != null) {
             creditAccount = accountRepository.findById(dto.creditAccountId())
                     .orElseThrow(() -> new AccountNotFoundException(dto.creditAccountId()));
+            // For internal transfers, ensure credit account also belongs to the current user
+            // For external transfers, this check might be different or not apply
+            if (dto.type().equals(com.kostas.banking.enums.TransactionType.TRANSFER) && debitAccount != null && !creditAccount.getOwner().getId().equals(debitAccount.getOwner().getId())) {
+                throw new IllegalArgumentException("Cannot transfer to an account not owned by the same customer for internal transfers.");
+            }
         }
 
         Transaction transaction = new Transaction();
