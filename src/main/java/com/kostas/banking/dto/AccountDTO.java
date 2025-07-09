@@ -1,5 +1,6 @@
 package com.kostas.banking.dto;
 
+import com.kostas.banking.enums.AccountStatus;
 import com.kostas.banking.enums.AccountType;
 import com.kostas.banking.model.Account;
 
@@ -9,6 +10,7 @@ public record AccountDTO(
         UUID id,
         String accountNumber,
         AccountType type,
+        AccountStatus status,
         UUID ownerId,
         String ownerFullName
 ) {
@@ -17,6 +19,7 @@ public record AccountDTO(
                 account.getId(),
                 account.getAccountNumber(),
                 account.getType(),
+                account.getStatus(),
                 account.getOwner().getId(),
                 account.getOwner().getFullName()
         );

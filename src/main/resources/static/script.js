@@ -1,6 +1,8 @@
 // Global state
 let currentUser = null;
 let accounts = [];
+let activeAccounts = [];
+let closedAccounts = [];
 let balances = [];
 let transactions = [];
 
@@ -15,22 +17,22 @@ async function apiCall(endpoint, options = {}) {
             'Content-Type': 'application/json',
         },
     };
-    
+
     const finalOptions = { ...defaultOptions, ...options };
-    
+
     try {
         const response = await fetch(url, finalOptions);
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
-        
+
         // Handle 204 No Content responses
         if (response.status === 204) {
             return null;
         }
-        
+
         return await response.json();
     } catch (error) {
         console.error('API call failed:', error);
@@ -80,23 +82,23 @@ async function login(email, password) {
                 password: password
             })
         });
-        
+
         // Get customer data
         const customerData = await apiCall(`/customers/${authData.customerId}`);
-        
+
         currentUser = {
             id: customerData.id,
             fullName: customerData.fullName,
             email: customerData.email,
             dateOfBirth: customerData.dateOfBirth
         };
-        
+
         // Update user name in header
         document.getElementById('user-name').textContent = `Welcome, ${currentUser.fullName}`;
-        
+
         // Load user data
         await loadUserData();
-        
+
         showMainApp();
         return true;
     } catch (error) {
@@ -117,7 +119,7 @@ async function signup(userData) {
                 password: userData.password
             })
         });
-        
+
         showModal('Account Created', 'Your account has been created successfully! Please log in.');
         showLogin();
         return true;
@@ -131,6 +133,8 @@ async function signup(userData) {
 function logout() {
     currentUser = null;
     accounts = [];
+    activeAccounts = [];
+    closedAccounts = [];
     balances = [];
     transactions = [];
     showLogin();
@@ -139,18 +143,22 @@ function logout() {
 // Data loading functions
 async function loadUserData() {
     if (!currentUser) return;
-    
+
     try {
         // Load accounts
         accounts = await apiCall(`/accounts/customer/${currentUser.id}`);
-        
+
+        // Separate active and closed accounts
+        activeAccounts = accounts.filter(account => account.status === 'ACTIVE');
+        closedAccounts = accounts.filter(account => account.status === 'CLOSED');
+
         // Load balances for all accounts
         balances = [];
         for (const account of accounts) {
             const accountBalances = await apiCall(`/balances/account/${account.id}`);
             balances.push(...accountBalances);
         }
-        
+
         // Load transactions for all accounts
         transactions = [];
         for (const account of accounts) {
@@ -161,7 +169,7 @@ async function loadUserData() {
             } catch (error) {
                 console.warn(`Failed to load debit transactions for account ${account.id}:`, error);
             }
-            
+
             try {
                 // Try to load transactions by credit account
                 const creditTransactions = await apiCall(`/transactions/creditAccount/${account.id}`);
@@ -170,7 +178,7 @@ async function loadUserData() {
                 console.warn(`Failed to load credit transactions for account ${account.id}:`, error);
             }
         }
-        
+
         // Remove duplicates (in case a transaction appears in both debit and credit)
         const uniqueTransactions = [];
         const seenIds = new Set();
@@ -181,10 +189,11 @@ async function loadUserData() {
             }
         }
         transactions = uniqueTransactions;
-        
+
         // Update displays
         updateDashboard();
         updateAccountsSection();
+        updateClosedAccountsSection();
         updateTransactionsSection();
         updateTransferForm();
     } catch (error) {
@@ -217,24 +226,24 @@ function showSection(sectionName) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
     });
-    
+
     // Remove active class from all nav items
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
-    
+
     // Show selected section
     const targetSection = document.getElementById(`${sectionName}-section`);
     if (targetSection) {
         targetSection.classList.add('active');
     }
-    
+
     // Add active class to selected nav item
     const targetNavItem = document.querySelector(`[data-section="${sectionName}"]`);
     if (targetNavItem) {
         targetNavItem.classList.add('active');
     }
-    
+
     // Update section-specific data
     switch(sectionName) {
         case 'dashboard':
@@ -242,6 +251,9 @@ function showSection(sectionName) {
             break;
         case 'accounts':
             updateAccountsSection();
+            break;
+        case 'closed-accounts':
+            updateClosedAccountsSection();
             break;
         case 'transactions':
             updateTransactionsSection();
@@ -259,18 +271,21 @@ function updateDashboard() {
 }
 
 function updateDashboardStats() {
-    // Calculate total balance across all accounts and currencies
+    // Calculate total balance across all active accounts only
     const totalUSD = balances
-        .filter(balance => balance.currency === 'USD')
+        .filter(balance => {
+            const account = accounts.find(acc => acc.id === balance.accountId);
+            return account && account.status === 'ACTIVE' && balance.currency === 'USD';
+        })
         .reduce((sum, balance) => sum + parseFloat(balance.amount), 0);
-    
+
     document.getElementById('total-balance').textContent = formatCurrency(totalUSD);
-    document.getElementById('account-count').textContent = accounts.length;
-    
+    document.getElementById('account-count').textContent = activeAccounts.length;
+
     // Calculate this month's transactions
     const thisMonth = new Date();
     thisMonth.setDate(1);
-    const thisMonthTransactions = transactions.filter(txn => 
+    const thisMonthTransactions = transactions.filter(txn =>
         new Date(txn.createdAt) >= thisMonth
     );
     document.getElementById('transaction-count').textContent = thisMonthTransactions.length;
@@ -279,16 +294,16 @@ function updateDashboardStats() {
 function updateRecentActivity() {
     const container = document.getElementById('recent-activity');
     container.innerHTML = '';
-    
+
     const recentTransactions = transactions
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 3);
-    
+
     if (recentTransactions.length === 0) {
         container.innerHTML = '<div class="text-center text-muted" style="padding: 40px;">No recent activity</div>';
         return;
     }
-    
+
     recentTransactions.forEach(transaction => {
         const item = createTransactionItem(transaction);
         container.appendChild(item);
@@ -299,16 +314,175 @@ function updateRecentActivity() {
 function updateAccountsSection() {
     const container = document.getElementById('accounts-grid');
     container.innerHTML = '';
-    
-    if (accounts.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted" style="padding: 40px; grid-column: 1 / -1;">No accounts found. Create your first account to get started!</div>';
+
+    if (activeAccounts.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted" style="padding: 40px; grid-column: 1 / -1;">No active accounts found. Create your first account to get started!</div>';
         return;
     }
-    
-    accounts.forEach(account => {
-        const accountCard = createAccountCard(account);
+
+    activeAccounts.forEach(account => {
+        const accountCard = createAccountCard(account, false);
         container.appendChild(accountCard);
     });
+}
+
+function updateClosedAccountsSection() {
+    const container = document.getElementById('closed-accounts-grid');
+    container.innerHTML = '';
+
+    if (closedAccounts.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted" style="padding: 40px; grid-column: 1 / -1;">No closed accounts found.</div>';
+        return;
+    }
+
+    closedAccounts.forEach(account => {
+        const accountCard = createAccountCard(account, true);
+        container.appendChild(accountCard);
+    });
+}
+
+function createAccountCard(account, isClosed = false) {
+    const accountBalances = balances.filter(bal => bal.accountId === account.id);
+
+    const card = document.createElement('div');
+    card.className = `account-card ${isClosed ? 'closed-account' : ''}`;
+
+    const typeClass = account.type.toLowerCase();
+    const typeLabel = account.type.charAt(0) + account.type.slice(1).toLowerCase();
+
+    card.innerHTML = `
+        <div class="account-header">
+            <h3>${typeLabel} Account ${isClosed ? '(CLOSED)' : ''}</h3>
+            <span class="account-type-badge ${typeClass} ${isClosed ? 'closed' : ''}">${account.type}</span>
+        </div>
+        <div class="account-number">${account.accountNumber}</div>
+        <div class="account-status">Status: <span class="status-${account.status.toLowerCase()}">${account.status}</span></div>
+        ${!isClosed ? `
+        <div class="account-balances">
+            ${accountBalances.length > 0 ? accountBalances.map(balance => `
+                <div class="balance-item">
+                    <span class="currency-code">${balance.currency}</span>
+                    <span class="balance-value">${formatCurrency(balance.amount, balance.currency)}</span>
+                </div>
+            `).join('') : '<div class="balance-item"><span class="currency-code">USD</span><span class="balance-value">$0.00</span></div>'}
+        </div>
+        ` : ''}
+        <div class="account-actions">
+            ${!isClosed ? `
+                <button class="btn btn-danger btn-small close-account-btn" data-account-id="${account.id}">Close Account</button>
+            ` : `
+                <button class="btn btn-success btn-small restore-account-btn" data-account-id="${account.id}">Restore Account</button>
+            `}
+        </div>
+    `;
+
+    // Add event listeners
+    if (!isClosed) {
+        const closeBtn = card.querySelector('.close-account-btn');
+        closeBtn.addEventListener('click', () => confirmCloseAccount(account));
+    } else {
+        const restoreBtn = card.querySelector('.restore-account-btn');
+        restoreBtn.addEventListener('click', () => confirmRestoreAccount(account));
+    }
+
+    return card;
+}
+
+// Account management functions
+function confirmCloseAccount(account) {
+    const accountBalances = balances.filter(bal => bal.accountId === account.id);
+    const totalBalance = accountBalances.reduce((sum, balance) => sum + parseFloat(balance.amount), 0);
+
+    let confirmationMessage = `
+        <p>Are you sure you want to close this account?</p>
+        <p><strong>Account:</strong> ${account.accountNumber} (${account.type})</p>
+    `;
+
+    if (totalBalance > 0) {
+        confirmationMessage += `
+            <p><strong>Warning:</strong> This account has a balance of ${formatCurrency(totalBalance)}.
+            Please transfer all funds before closing the account.</p>
+            <p class="text-danger">Account closure will be blocked if there are remaining funds.</p>
+        `;
+    } else {
+        confirmationMessage += `
+            <p class="text-muted">This account has no remaining balance and can be safely closed.</p>
+        `;
+    }
+
+    confirmationMessage += `
+        <div class="modal-actions" style="margin-top: 20px;">
+            <button onclick="hideModal()" class="btn btn-secondary">Cancel</button>
+            <button onclick="closeAccount('${account.id}')" class="btn btn-danger">Close Account</button>
+        </div>
+    `;
+
+    showModal('Close Account', confirmationMessage);
+}
+
+function confirmRestoreAccount(account) {
+    let confirmationMessage = `
+        <p>Are you sure you want to restore this account?</p>
+        <p><strong>Account:</strong> ${account.accountNumber} (${account.type})</p>
+        <p class="text-muted">This will reactivate the account and make it available for transactions.</p>
+        <div class="modal-actions" style="margin-top: 20px;">
+            <button onclick="hideModal()" class="btn btn-secondary">Cancel</button>
+            <button onclick="restoreAccount('${account.id}')" class="btn btn-success">Restore Account</button>
+        </div>
+    `;
+
+    showModal('Restore Account', confirmationMessage);
+}
+
+async function closeAccount(accountId) {
+    try {
+        // Check if account has any remaining balance
+        const accountBalances = balances.filter(bal => bal.accountId === accountId);
+        const totalBalance = accountBalances.reduce((sum, balance) => sum + parseFloat(balance.amount), 0);
+
+        if (totalBalance > 0) {
+            showModal('Cannot Close Account',
+                `This account still has a balance of ${formatCurrency(totalBalance)}.
+                Please transfer all funds to another account before closure.`);
+            return;
+        }
+
+        // Close the account via API (soft delete)
+        await apiCall(`/accounts/${accountId}`, {
+            method: 'DELETE'
+        });
+
+        // Reload user data to reflect changes
+        await loadUserData();
+
+        hideModal();
+        showModal('Account Closed', 'The account has been successfully closed.');
+
+    } catch (error) {
+        console.error('Account closure failed:', error);
+        hideModal();
+        showModal('Closure Failed', error.message || 'An error occurred while closing the account.');
+    }
+}
+
+async function restoreAccount(accountId) {
+    try {
+        // Restore the account via API
+        await apiCall(`/accounts/${accountId}/restore`, {
+            method: 'PUT'
+        });
+
+        // Reload user data to reflect changes
+        await loadUserData();
+
+        hideModal();
+        showModal('Account Restored', 'The account has been successfully restored and is now active.');
+
+    } catch (error) {
+        console.error('Account restoration failed:', error);
+        hideModal();
+        showModal('Restoration Failed', error.message || 'An error occurred while restoring the account.');
+    }
 }
 
 async function createAccount(accountData) {
@@ -322,7 +496,7 @@ async function createAccount(accountData) {
                 ownerId: currentUser.id
             })
         });
-        
+
         // Create initial balance if deposit amount is provided
         if (accountData.initialDeposit && parseFloat(accountData.initialDeposit) > 0) {
             const newBalance = await apiCall('/balances', {
@@ -333,7 +507,7 @@ async function createAccount(accountData) {
                     currency: accountData.depositCurrency
                 })
             });
-            
+
             // Create a deposit transaction
             const depositTransaction = await apiCall('/transactions', {
                 method: 'POST',
@@ -348,10 +522,10 @@ async function createAccount(accountData) {
                 })
             });
         }
-        
+
         // Reload user data
         await loadUserData();
-        
+
         return newAccount;
     } catch (error) {
         console.error('Account creation failed:', error);
@@ -371,7 +545,7 @@ function hideAccountCreationModal() {
 
 function updateAccountTypeInfo(accountType) {
     const infoDiv = document.getElementById('account-type-info');
-    
+
     const accountTypeDescriptions = {
         'CHECKING': {
             title: 'Checking Account',
@@ -389,7 +563,7 @@ function updateAccountTypeInfo(accountType) {
             features: ['Credit building', 'Rewards program', 'Fraud protection', 'Emergency access to funds']
         }
     };
-    
+
     if (accountType && accountTypeDescriptions[accountType]) {
         const info = accountTypeDescriptions[accountType];
         infoDiv.innerHTML = `
@@ -406,104 +580,6 @@ function updateAccountTypeInfo(accountType) {
     }
 }
 
-function createAccountCard(account) {
-    const accountBalances = balances.filter(bal => bal.accountId === account.id);
-    
-    const card = document.createElement('div');
-    card.className = 'account-card';
-    
-    const typeClass = account.type.toLowerCase();
-    const typeLabel = account.type.charAt(0) + account.type.slice(1).toLowerCase();
-    
-    card.innerHTML = `
-        <div class="account-header">
-            <h3>${typeLabel} Account</h3>
-            <span class="account-type-badge ${typeClass}">${account.type}</span>
-        </div>
-        <div class="account-number">${account.accountNumber}</div>
-        <div class="account-balances">
-            ${accountBalances.length > 0 ? accountBalances.map(balance => `
-                <div class="balance-item">
-                    <span class="currency-code">${balance.currency}</span>
-                    <span class="balance-value">${formatCurrency(balance.amount, balance.currency)}</span>
-                </div>
-            `).join('') : '<div class="balance-item"><span class="currency-code">USD</span><span class="balance-value">$0.00</span></div>'}
-        </div>
-        <div class="account-actions">
-            <button class="btn btn-danger btn-small delete-account-btn" data-account-id="${account.id}">Delete Account</button>
-        </div>
-    `;
-    
-    // Add event listener for delete button
-    const deleteBtn = card.querySelector('.delete-account-btn');
-    deleteBtn.addEventListener('click', () => confirmDeleteAccount(account));
-    
-    return card;
-}
-
-// Account deletion functions
-function confirmDeleteAccount(account) {
-    const accountBalances = balances.filter(bal => bal.accountId === account.id);
-    const totalBalance = accountBalances.reduce((sum, balance) => sum + parseFloat(balance.amount), 0);
-    
-    let confirmationMessage = `
-        <p>Are you sure you want to delete this account?</p>
-        <p><strong>Account:</strong> ${account.accountNumber} (${account.type})</p>
-    `;
-    
-    if (totalBalance > 0) {
-        confirmationMessage += `
-            <p><strong>Warning:</strong> This account has a balance of ${formatCurrency(totalBalance)}. 
-            Please transfer all funds before deleting the account.</p>
-            <p class="text-danger">Account deletion will be blocked if there are remaining funds.</p>
-        `;
-    } else {
-        confirmationMessage += `
-            <p class="text-muted">This account has no remaining balance and can be safely deleted.</p>
-        `;
-    }
-    
-    confirmationMessage += `
-        <div class="modal-actions" style="margin-top: 20px;">
-            <button onclick="hideModal()" class="btn btn-secondary">Cancel</button>
-            <button onclick="deleteAccount('${account.id}')" class="btn btn-danger">Delete Account</button>
-        </div>
-    `;
-    
-    showModal('Delete Account', confirmationMessage);
-}
-
-async function deleteAccount(accountId) {
-    try {
-        // Check if account has any remaining balance
-        const accountBalances = balances.filter(bal => bal.accountId === accountId);
-        const totalBalance = accountBalances.reduce((sum, balance) => sum + parseFloat(balance.amount), 0);
-        
-        if (totalBalance > 0) {
-            showModal('Cannot Delete Account', 
-                `This account still has a balance of ${formatCurrency(totalBalance)}. 
-                Please transfer all funds to another account before deletion.`);
-            return;
-        }
-        
-        // Delete the account via API
-        await apiCall(`/accounts/${accountId}`, {
-            method: 'DELETE'
-        });
-        
-        // Reload user data to reflect changes
-        await loadUserData();
-        
-        hideModal();
-        showModal('Account Deleted', 'The account has been successfully deleted.');
-        
-    } catch (error) {
-        console.error('Account deletion failed:', error);
-        hideModal();
-        showModal('Deletion Failed', error.message || 'An error occurred while deleting the account.');
-    }
-}
-
 // Transaction functions
 function updateTransactionsSection() {
     updateTransactionFilters();
@@ -513,11 +589,12 @@ function updateTransactionsSection() {
 function updateTransactionFilters() {
     const accountFilter = document.getElementById('account-filter');
     accountFilter.innerHTML = '<option value="">All Accounts</option>';
-    
+
+    // Include both active and closed accounts in filter
     accounts.forEach(account => {
         const option = document.createElement('option');
         option.value = account.id;
-        option.textContent = `${account.accountNumber} (${account.type})`;
+        option.textContent = `${account.accountNumber} (${account.type}) ${account.status === 'CLOSED' ? '- CLOSED' : ''}`;
         accountFilter.appendChild(option);
     });
 }
@@ -525,22 +602,22 @@ function updateTransactionFilters() {
 function displayTransactions(filteredTransactions = null) {
     const transactionsToShow = filteredTransactions || transactions;
     const container = document.getElementById('transactions-table');
-    
+
     if (transactionsToShow.length === 0) {
         container.innerHTML = '<div class="text-center text-muted" style="padding: 40px;">No transactions found</div>';
         return;
     }
-    
+
     const transactionList = document.createElement('div');
     transactionList.className = 'transaction-list';
-    
+
     transactionsToShow
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .forEach(transaction => {
             const item = createTransactionItem(transaction);
             transactionList.appendChild(item);
         });
-    
+
     container.innerHTML = '';
     container.appendChild(transactionList);
 }
@@ -548,13 +625,13 @@ function displayTransactions(filteredTransactions = null) {
 function createTransactionItem(transaction) {
     const item = document.createElement('div');
     item.className = 'transaction-item';
-    
+
     const isCredit = transaction.creditAccountId && accounts.find(acc => acc.id === transaction.creditAccountId);
     const isDebit = transaction.debitAccountId && accounts.find(acc => acc.id === transaction.debitAccountId);
-    
+
     let amountClass = '';
     let amountPrefix = '';
-    
+
     if (isCredit && !isDebit) {
         amountClass = 'positive';
         amountPrefix = '+';
@@ -562,10 +639,10 @@ function createTransactionItem(transaction) {
         amountClass = 'negative';
         amountPrefix = '-';
     }
-    
+
     const debitAccount = accounts.find(acc => acc.id === transaction.debitAccountId);
     const creditAccount = accounts.find(acc => acc.id === transaction.creditAccountId);
-    
+
     let details = '';
     if (transaction.type === 'TRANSFER' && debitAccount && creditAccount) {
         details = `From ${debitAccount.accountNumber} to ${creditAccount.accountNumber}`;
@@ -579,7 +656,7 @@ function createTransactionItem(transaction) {
             details += ` (${transaction.recipientName})`;
         }
     }
-    
+
     item.innerHTML = `
         <div class="transaction-info">
             <div class="transaction-type">${transaction.type}</div>
@@ -594,7 +671,7 @@ function createTransactionItem(transaction) {
             <span class="transaction-status ${transaction.status.toLowerCase()}">${transaction.status}</span>
         </div>
     `;
-    
+
     return item;
 }
 
@@ -602,23 +679,23 @@ function filterTransactions() {
     const accountFilter = document.getElementById('account-filter').value;
     const statusFilter = document.getElementById('status-filter').value;
     const typeFilter = document.getElementById('type-filter').value;
-    
+
     let filtered = transactions;
-    
+
     if (accountFilter) {
-        filtered = filtered.filter(txn => 
+        filtered = filtered.filter(txn =>
             txn.debitAccountId === accountFilter || txn.creditAccountId === accountFilter
         );
     }
-    
+
     if (statusFilter) {
         filtered = filtered.filter(txn => txn.status === statusFilter);
     }
-    
+
     if (typeFilter) {
         filtered = filtered.filter(txn => txn.type === typeFilter);
     }
-    
+
     displayTransactions(filtered);
 }
 
@@ -626,16 +703,17 @@ function filterTransactions() {
 function updateTransferForm() {
     const fromAccount = document.getElementById('from-account');
     const toAccount = document.getElementById('to-account');
-    
+
     fromAccount.innerHTML = '<option value="">Select account</option>';
     toAccount.innerHTML = '<option value="">Select account</option>';
-    
-    accounts.forEach(account => {
+
+    // Only show active accounts for transfers
+    activeAccounts.forEach(account => {
         const option1 = document.createElement('option');
         option1.value = account.id;
         option1.textContent = `${account.accountNumber} (${account.type})`;
         fromAccount.appendChild(option1);
-        
+
         const option2 = document.createElement('option');
         option2.value = account.id;
         option2.textContent = `${account.accountNumber} (${account.type})`;
@@ -650,7 +728,7 @@ function toggleTransferType() {
     const toAccountSelect = document.getElementById('to-account');
     const externalAccountInput = document.getElementById('external-account-number');
     const recipientNameInput = document.getElementById('recipient-name');
-    
+
     if (transferType === 'external') {
         internalRow.classList.add('hidden');
         externalRow.classList.remove('hidden');
@@ -672,14 +750,14 @@ async function processTransfer(formData) {
         let creditAccountId = null;
         let externalAccountNumber = null;
         let recipientName = null;
-        
+
         if (transferType === 'internal') {
             creditAccountId = formData.toAccount;
         } else {
             externalAccountNumber = formData.externalAccountNumber;
             recipientName = formData.recipientName;
         }
-        
+
         // Create transaction
         const transactionData = {
             referenceNumber: `TXN-${Date.now()}`,
@@ -690,7 +768,7 @@ async function processTransfer(formData) {
             type: 'TRANSFER',
             status: 'COMPLETED'
         };
-        
+
         if (externalAccountNumber) {
             transactionData.externalAccountNumber = externalAccountNumber;
         }
@@ -700,12 +778,12 @@ async function processTransfer(formData) {
         if (formData.description) {
             transactionData.description = formData.description;
         }
-        
+
         const newTransaction = await apiCall('/transactions', {
             method: 'POST',
             body: JSON.stringify(transactionData)
         });
-        
+
         // Update balances for internal transfers
         if (transferType === 'internal') {
             // Debit from source account
@@ -720,7 +798,7 @@ async function processTransfer(formData) {
                     })
                 });
             }
-            
+
             // Credit to destination account
             const toAccountBalances = balances.filter(b => b.accountId === formData.toAccount && b.currency === formData.currency);
             if (toAccountBalances.length > 0) {
@@ -757,10 +835,10 @@ async function processTransfer(formData) {
                 });
             }
         }
-        
+
         // Reload user data to reflect changes
         await loadUserData();
-        
+
         let transferMessage = '';
         if (transferType === 'internal') {
             const toAccount = accounts.find(acc => acc.id === creditAccountId);
@@ -780,7 +858,7 @@ async function processTransfer(formData) {
                 <p class="text-muted mt-2">External transfers may take 1-3 business days to complete.</p>
             `;
         }
-        
+
         showModal('Transfer Successful', transferMessage);
     } catch (error) {
         console.error('Transfer failed:', error);
@@ -806,52 +884,52 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         showSignup();
     });
-    
+
     document.getElementById('show-login').addEventListener('click', function(e) {
         e.preventDefault();
         showLogin();
     });
-    
+
     // Login form
     document.getElementById('loginForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(e.target);
         const email = formData.get('email');
         const password = formData.get('password');
-        
+
         login(email, password).then(success => {
             if (success) {
                 e.target.reset();
             }
         });
     });
-    
+
     // Signup form
     document.getElementById('signupForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(e.target);
         const password = formData.get('password');
         const confirmPassword = formData.get('confirmPassword');
-        
+
         if (password !== confirmPassword) {
             showModal('Signup Failed', 'Passwords do not match.');
             return;
         }
-        
+
         const userData = {
             fullName: formData.get('fullName'),
             email: formData.get('email'),
             dateOfBirth: formData.get('dateOfBirth'),
             password: password
         };
-        
+
         signup(userData).then(success => {
             if (success) {
                 e.target.reset();
             }
         });
     });
-    
+
     // Navigation
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', function() {
@@ -859,15 +937,15 @@ document.addEventListener('DOMContentLoaded', function() {
             showSection(section);
         });
     });
-    
+
     // Logout
     document.getElementById('logout-btn').addEventListener('click', logout);
-    
+
     // Transaction filters
     document.getElementById('account-filter').addEventListener('change', filterTransactions);
     document.getElementById('status-filter').addEventListener('change', filterTransactions);
     document.getElementById('type-filter').addEventListener('change', filterTransactions);
-    
+
     // Modal close handlers
     document.querySelector('.modal-close').addEventListener('click', hideModal);
     document.getElementById('modal-overlay').addEventListener('click', function(e) {
@@ -875,16 +953,16 @@ document.addEventListener('DOMContentLoaded', function() {
             hideModal();
         }
     });
-    
+
     // Transfer type toggle
     document.getElementById('transfer-type').addEventListener('change', toggleTransferType);
-    
+
     // Transfer form
     document.getElementById('transfer-form').addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(e.target);
         const transferType = formData.get('transferType');
-        
+
         const transferData = {
             transferType: transferType,
             fromAccount: formData.get('fromAccount'),
@@ -895,54 +973,54 @@ document.addEventListener('DOMContentLoaded', function() {
             currency: formData.get('currency'),
             description: formData.get('description')
         };
-        
+
         // Validation
         if (transferType === 'internal' && transferData.fromAccount === transferData.toAccount) {
             showModal('Transfer Error', 'Cannot transfer to the same account.');
             return;
         }
-        
+
         if (transferType === 'external' && (!transferData.externalAccountNumber || !transferData.recipientName)) {
             showModal('Transfer Error', 'Please provide external account number and recipient name.');
             return;
         }
-        
+
         processTransfer(transferData).then(() => {
             e.target.reset();
             toggleTransferType(); // Reset form visibility
         });
     });
-    
+
     // Account creation modal
     document.getElementById('create-account-btn').addEventListener('click', showAccountCreationModal);
     document.getElementById('account-modal-close').addEventListener('click', hideAccountCreationModal);
     document.getElementById('cancel-account-creation').addEventListener('click', hideAccountCreationModal);
-    
+
     // Account type selection
     document.getElementById('account-type').addEventListener('change', function(e) {
         updateAccountTypeInfo(e.target.value);
     });
-    
+
     // Account creation form
     document.getElementById('create-account-form').addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(e.target);
-        
+
         const accountData = {
             accountType: formData.get('accountType'),
             initialDeposit: formData.get('initialDeposit'),
             depositCurrency: formData.get('depositCurrency')
         };
-        
+
         createAccount(accountData).then(newAccount => {
             hideAccountCreationModal();
-            
+
             showModal('Account Created Successfully', `
                 <p>Your new ${accountData.accountType.toLowerCase()} account has been created!</p>
                 <p><strong>Account Number:</strong> ${newAccount.accountNumber}</p>
                 <p><strong>Account Type:</strong> ${newAccount.type}</p>
-                ${accountData.initialDeposit && parseFloat(accountData.initialDeposit) > 0 ? 
-                    `<p><strong>Initial Deposit:</strong> ${formatCurrency(parseFloat(accountData.initialDeposit), accountData.depositCurrency)}</p>` : 
+                ${accountData.initialDeposit && parseFloat(accountData.initialDeposit) > 0 ?
+                    `<p><strong>Initial Deposit:</strong> ${formatCurrency(parseFloat(accountData.initialDeposit), accountData.depositCurrency)}</p>` :
                     ''
                 }
                 <p class="text-muted mt-2">You can now use this account for transfers and transactions.</p>
@@ -951,14 +1029,13 @@ document.addEventListener('DOMContentLoaded', function() {
             showModal('Account Creation Failed', error.message || 'An error occurred while creating the account.');
         });
     });
-    
+
     document.getElementById('account-modal-overlay').addEventListener('click', function(e) {
         if (e.target === this) {
             hideAccountCreationModal();
         }
     });
-    
+
     // Initialize with login form
     showLogin();
 });
-

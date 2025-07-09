@@ -65,5 +65,10 @@ public class AccountController {
     public void deleteAccount(@PathVariable UUID id) {
         accountService.deleteAccount(id);
     }
+
+    @PutMapping("/{id}/restore")
+    public ResponseEntity<AccountDTO> restoreAccount(@PathVariable UUID id) {
+        return ResponseEntity.ok(accountService.restoreAccount(id));
+    }
 }
 

@@ -1,5 +1,6 @@
 package com.kostas.banking.model;
 
+import com.kostas.banking.enums.AccountStatus;
 import com.kostas.banking.enums.AccountType;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -30,4 +31,8 @@ public class Account {
 
     @OneToMany(mappedBy = "account")
     private List<Balance> balances;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AccountStatus status;
 }

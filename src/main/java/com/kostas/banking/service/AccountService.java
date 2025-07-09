@@ -3,6 +3,7 @@ package com.kostas.banking.service;
 import com.kostas.banking.dto.AccountCreateDTO;
 import com.kostas.banking.dto.AccountDTO;
 import com.kostas.banking.dto.AccountUpdateDTO;
+import com.kostas.banking.enums.AccountStatus;
 import com.kostas.banking.exception.AccountNotFoundException;
 import com.kostas.banking.exception.CustomerNotFoundException;
 import com.kostas.banking.model.Account;
@@ -63,6 +64,7 @@ public class AccountService {
         account.setId(UUID.randomUUID());
         account.setAccountNumber(dto.accountNumber());
         account.setType(dto.type());
+        account.setStatus(AccountStatus.ACTIVE);
         account.setOwner(owner);
 
         Account saved = accountRepository.save(account);
@@ -75,8 +77,12 @@ public class AccountService {
                 .orElseThrow(() -> new AccountNotFoundException(id));
 
         account.setType(dto.type());
+        if (dto.status() != null) {
+            account.setStatus(dto.status());
+        }
 
-        return AccountDTO.fromEntity(account);
+        Account saved = accountRepository.save(account);
+        return AccountDTO.fromEntity(saved);
     }
 
     @Transactional
@@ -84,7 +90,22 @@ public class AccountService {
         if (!accountRepository.existsById(id)) {
             throw new AccountNotFoundException(id);
         }
-        accountRepository.deleteById(id);
+
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new AccountNotFoundException(id));
+
+        account.setStatus(AccountStatus.CLOSED);
+        accountRepository.save(account);
+    }
+
+    @Transactional
+    public AccountDTO restoreAccount(UUID id) {
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new AccountNotFoundException(id));
+
+        account.setStatus(AccountStatus.ACTIVE);
+        Account saved = accountRepository.save(account);
+        return AccountDTO.fromEntity(saved);
     }
 }
 
