@@ -17,7 +17,6 @@ import java.util.UUID;
 @Setter
 @Entity
 @Table(name = "transactions")
-@Check(constraints = "created_at <= CURRENT_TIMESTAMP AND (posted_at IS NULL OR posted_at <= CURRENT_TIMESTAMP)")
 public class Transaction {
     @Id
     private UUID id;

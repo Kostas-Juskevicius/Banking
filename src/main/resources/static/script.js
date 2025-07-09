@@ -154,9 +154,33 @@ async function loadUserData() {
         // Load transactions for all accounts
         transactions = [];
         for (const account of accounts) {
-            const accountTransactions = await apiCall(`/transactions/account/${account.id}`);
-            transactions.push(...accountTransactions);
+            try {
+                // Try to load transactions by debit account
+                const debitTransactions = await apiCall(`/transactions/debit-account/${account.id}`);
+                transactions.push(...debitTransactions);
+            } catch (error) {
+                console.warn(`Failed to load debit transactions for account ${account.id}:`, error);
+            }
+            
+            try {
+                // Try to load transactions by credit account
+                const creditTransactions = await apiCall(`/transactions/credit-account/${account.id}`);
+                transactions.push(...creditTransactions);
+            } catch (error) {
+                console.warn(`Failed to load credit transactions for account ${account.id}:`, error);
+            }
         }
+        
+        // Remove duplicates (in case a transaction appears in both debit and credit)
+        const uniqueTransactions = [];
+        const seenIds = new Set();
+        for (const transaction of transactions) {
+            if (!seenIds.has(transaction.id)) {
+                seenIds.add(transaction.id);
+                uniqueTransactions.push(transaction);
+            }
+        }
+        transactions = uniqueTransactions;
         
         // Update displays
         updateDashboard();
@@ -405,9 +429,79 @@ function createAccountCard(account) {
                 </div>
             `).join('') : '<div class="balance-item"><span class="currency-code">USD</span><span class="balance-value">$0.00</span></div>'}
         </div>
+        <div class="account-actions">
+            <button class="btn btn-danger btn-small delete-account-btn" data-account-id="${account.id}">Delete Account</button>
+        </div>
     `;
     
+    // Add event listener for delete button
+    const deleteBtn = card.querySelector('.delete-account-btn');
+    deleteBtn.addEventListener('click', () => confirmDeleteAccount(account));
+    
     return card;
+}
+
+// Account deletion functions
+function confirmDeleteAccount(account) {
+    const accountBalances = balances.filter(bal => bal.accountId === account.id);
+    const totalBalance = accountBalances.reduce((sum, balance) => sum + parseFloat(balance.amount), 0);
+    
+    let confirmationMessage = `
+        <p>Are you sure you want to delete this account?</p>
+        <p><strong>Account:</strong> ${account.accountNumber} (${account.type})</p>
+    `;
+    
+    if (totalBalance > 0) {
+        confirmationMessage += `
+            <p><strong>Warning:</strong> This account has a balance of ${formatCurrency(totalBalance)}. 
+            Please transfer all funds before deleting the account.</p>
+            <p class="text-danger">Account deletion will be blocked if there are remaining funds.</p>
+        `;
+    } else {
+        confirmationMessage += `
+            <p class="text-muted">This account has no remaining balance and can be safely deleted.</p>
+        `;
+    }
+    
+    confirmationMessage += `
+        <div class="modal-actions" style="margin-top: 20px;">
+            <button onclick="hideModal()" class="btn btn-secondary">Cancel</button>
+            <button onclick="deleteAccount('${account.id}')" class="btn btn-danger">Delete Account</button>
+        </div>
+    `;
+    
+    showModal('Delete Account', confirmationMessage);
+}
+
+async function deleteAccount(accountId) {
+    try {
+        // Check if account has any remaining balance
+        const accountBalances = balances.filter(bal => bal.accountId === accountId);
+        const totalBalance = accountBalances.reduce((sum, balance) => sum + parseFloat(balance.amount), 0);
+        
+        if (totalBalance > 0) {
+            showModal('Cannot Delete Account', 
+                `This account still has a balance of ${formatCurrency(totalBalance)}. 
+                Please transfer all funds to another account before deletion.`);
+            return;
+        }
+        
+        // Delete the account via API
+        await apiCall(`/accounts/${accountId}`, {
+            method: 'DELETE'
+        });
+        
+        // Reload user data to reflect changes
+        await loadUserData();
+        
+        hideModal();
+        showModal('Account Deleted', 'The account has been successfully deleted.');
+        
+    } catch (error) {
+        console.error('Account deletion failed:', error);
+        hideModal();
+        showModal('Deletion Failed', error.message || 'An error occurred while deleting the account.');
+    }
 }
 
 // Transaction functions
