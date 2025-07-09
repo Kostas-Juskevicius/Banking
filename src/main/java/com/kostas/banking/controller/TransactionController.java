@@ -38,12 +38,12 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getAllTransactions());
     }
 
-    @GetMapping("/account/{accountDebitId}")
+    @GetMapping("/debitAccount/{accountDebitId}")
     public ResponseEntity<List<TransactionDTO>> getTransactionsByDebitAccountId(@PathVariable UUID accountId) {
         return ResponseEntity.ok(transactionService.getTransactionsByDebitAccountId(accountId));
     }
 
-    @GetMapping("/account/{accountCreditId}")
+    @GetMapping("/creditAccount/{accountCreditId}")
     public ResponseEntity<List<TransactionDTO>> getTransactionsByCreditAccountId(@PathVariable UUID accountId) {
         return ResponseEntity.ok(transactionService.getTransactionsByCreditAccountId(accountId));
     }
